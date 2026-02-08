@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Admin Login</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Icons -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded" />
+</head>
+<script>
+    
+    if(localStorage.getItem("loggedIn") !== "true"){
+        window.location.href = "login.html";
+    }
+</script>
+ <!-- HEADER -->
+    <header class="header">
+        <div class="header-content">
+            <h1>
+                <span class="material-symbols-rounded">local_hospital</span>
+                Hospital IDS Monitoring Dashboard
+            </h1>
+            <p>Mointoring page</p>
+        </div>
+    </header>
+
+<body class="login-body">
+
+    <div class="login-card">
+        <h2>
+            <span class="material-symbols-rounded">account_circle</span>
+            Admin Login
+        </h2>
+
+        <form id="loginForm">
+            <label>Email</label>
+            <input type="email" id="email" placeholder="Enter email" required>
+
+            <label>Password</label>
+            <input type="password" id="password" placeholder="Enter password" required>
+
+            <button type="submit" class="login-btn">Login</button>
+
+            <p id="errorMsg" class="error"></p>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById("loginForm").addEventListener("submit", function(e){
+            e.preventDefault();
+
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+            const errorMsg = document.getElementById("errorMsg");
+
+            // Correct credentials
+            if(email === "admin@gmail.com" && password === "admin1234"){
+                localStorage.setItem("loggedIn", "true"); // mark as logged in
+                window.location.href = "Dashboard.html";  // redirect to monitoring dashboard
+            } else {
+                errorMsg.innerHTML = "Incorrect email or password!";
+            }
+        });
+    </script>
+
+</body>
+</html>
