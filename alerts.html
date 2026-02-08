@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alerts & Incidents – IoMT IDS</title>
+
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #0f172a; color: white; display: flex; }
+
+    .sidebar {
+      width: 250px; background: #1e293b; height: 100vh; position: fixed;
+      top: 0; left: 0; padding-top: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.4);
+    }
+    .sidebar h2 { text-align: center; margin-bottom: 30px; color: #38bdf8; font-size: 22px; }
+    .sidebar a {
+      display: block; padding: 15px 20px; color: #cbd5e1; font-size: 18px;
+      text-decoration: none; margin: 5px 0; transition: 0.2s ease;
+    }
+    .sidebar a:hover, .sidebar a.active { background: #0ea5e9; color: white; }
+
+    .content { margin-left: 250px; padding: 25px; width: calc(100% - 250px); }
+    h1 { margin-bottom: 20px; }
+
+    .controls { display: flex; gap: 15px; margin-bottom: 20px; }
+    .controls input, .controls select {
+      padding: 10px; border-radius: 8px; border: none; outline: none;
+      background: #1e293b; color: white;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #1e293b;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td { padding: 12px; text-align: left; }
+    th { background: #334155; }
+    tr:nth-child(even) { background: #182233; }
+
+    .severity {
+      padding: 6px 10px; border-radius: 6px; font-size: 14px;
+      font-weight: bold; color: white;
+    }
+    .high { background: #ef4444; }
+    .medium { background: #f59e0b; }
+    .low { background: #10b981; }
+
+    button {
+      padding: 7px 14px; border: none; border-radius: 6px;
+      background: #3b82f6; color: white; cursor: pointer;
+    }
+    button:hover { background: #60a5fa; }
+    .resolved { background: #10b981; cursor: default; }
+
+    /* status line */
+  </style>
+</head>
+
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>SafeDose</h2>
+    <!-- ✅ IMPORTANT: use /app/... (because main.py mounts UI under /app) -->
+  <a href="/app/Dashboard.html">📊 Dashboard</a>
+<a href="/app/alerts.html">🚨 Alerts</a>
+<a href="/app/devices.html">🩺 Devices</a>
+<a href="/app/logs.html">📜 Logs</a>
+
+  </div>
+
+  <div class="content">
+    <h1>Alerts & Incidents</h1>
+
+    <div class="controls">
+      <input id="searchBox" type="text" placeholder="Search alert...">
+      <select id="severityFilter">
+        <option value="">All Severities</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Message</th>
+          <th>Severity</th>
+          <th>Timestamp</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="alertsTable"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const table = document.getElementById("alertsTable");
+    const searchBox = document.getElementById("searchBox");
+    const severityFilter = document.getElementById("severityFilter");
+
+    let alerts = [];
+    let isLoading = false;
+
+    // ✅ normalize severity to match CSS classes
+    function normalizeSeverity(sev) {
+      const s = String(sev || "").toLowerCase().trim();
+      if (s.includes("high")) return "high";
+      if (s.includes("medium")) return "medium";
+      if (s.includes("low")) return "low";
+      return "low"; // fallback
+    }
+
+    async function loadAlerts() {
+      if (isLoading) return;   // prevent overlapping calls
+      isLoading = true;
+
+      const search = searchBox.value.trim();
+      const sev = severityFilter.value.trim();
+
+      const url = `/api/alerts?limit=200&resolved=false`
+        + (search ? `&search=${encodeURIComponent(search)}` : "")
+        + (sev ? `&severity=${encodeURIComponent(sev)}` : "");
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("API error " + res.status);
+
+        alerts = await res.json();
+        
+        renderAlerts();
+      } catch (err) {
+        console.log(err);
+    
+        table.innerHTML = `<tr><td colspan="5" style="opacity:.7;">Failed to load alerts</td></tr>`;
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    function renderAlerts() {
+      table.innerHTML = "";
+
+      if (!alerts.length) {
+        table.innerHTML = `<tr><td colspan="5" style="opacity:.7;">No active alerts</td></tr>`;
+        return;
+      }
+
+      alerts.forEach(a => {
+        const sev = normalizeSeverity(a.severity);
+        const ts = (a.timestamp || "").replace("T", " ");
+
+        table.innerHTML += `
+          <tr>
+            <td>${a.id}</td>
+            <td>${a.message}</td>
+            <td><span class="severity ${sev}">${sev.toUpperCase()}</span></td>
+            <td>${ts}</td>
+            <td>
+              ${a.resolved
+                ? "<button class='resolved'>Resolved</button>"
+                : `<button onclick="resolveAlert(${a.id})">Mark Resolved</button>`}
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    async function resolveAlert(id) {
+      try {
+        const res = await fetch(`/api/alerts/${id}/resolve`, { method: "POST" });
+        if (!res.ok) throw new Error("Resolve failed " + res.status);
+        await loadAlerts();
+      } catch (e) {
+        alert("Failed to resolve alert. Check backend.");
+      }
+    }
+
+    // events
+    let typingTimer;
+    searchBox.addEventListener("keyup", () => {
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(loadAlerts, 250);
+    });
+
+    severityFilter.addEventListener("change", loadAlerts);
+
+    // initial load + refresh
+    loadAlerts();
+    setInterval(loadAlerts, 2000);
+  </script>
+</body>
+</html>
