@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Management – IoMT IDS</title>
+
+    <style>
+        /* Reset & Body */
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #0f172a;
+            color: white;
+            display: flex;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: #1e293b;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            padding-top: 20px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.4);
+        }
+
+        .sidebar h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #38bdf8;
+            font-size: 22px;
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 15px 20px;
+            color: #cbd5e1;
+            font-size: 18px;
+            text-decoration: none;
+            margin: 5px 0;
+            transition: 0.2s ease;
+        }
+
+        .sidebar a:hover, .sidebar a.active {
+            background: #0ea5e9;
+            color: white;
+        }
+
+        /* Main content */
+        .content {
+            margin-left: 250px;
+            padding: 25px;
+            width: calc(100% - 250px);
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        /* Card */
+        .card {
+            background: #1e293b;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.4);
+            margin-bottom: 25px;
+        }
+
+        .card h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        /* Devices Grid */
+        #devices-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .device-box {
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #38bdf8;
+        }
+
+        .device-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #38bdf8;
+            margin-bottom: 5px;
+        }
+
+        .status-green { color: #4ade80; font-weight: bold; }
+        .status-yellow { color: #facc15; font-weight: bold; }
+        .status-red { color: #ef4444; font-weight: bold; }
+
+        /* Buttons */
+        .btn {
+            background: #38bdf8;
+            color: #0f172a;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .btn:hover { background: #0ea5e9; }
+
+        .btn-red { background: #ef4444; color: white; }
+        .btn-red:hover { background: #dc2626; }
+
+        .btn-green { background: #4ade80; color: #0f172a; }
+        .btn-green:hover { background: #22c55e; }
+
+        .disabled {
+            background: #475569 !important;
+            cursor: not-allowed !important;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h2>SafeDose</h2>
+        <a href="dashboard.html">📊 Dashboard</a>
+        <a href="alerts.html">🚨 Alerts & Incidents</a>
+        <a href="devices.html" class="active">🩺 Device Management</a>
+        <a href="logs.html">📜 System Logs</a>
+        <a href="logout.html">🔒 Logout</a>
+    </div>
+
+    <!-- Main content -->
+    <div class="content">
+        <h1>Device Management</h1>
+
+        <div class="card">
+            <h3>Registered Infusion Pumps</h3>
+            <div id="devices-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const pumps = [
+            { name: "Infusion Pump A1", ip: "192.168.10.21", forceOff: false },
+            { name: "Infusion Pump B2", ip: "192.168.10.22", forceOff: false },
+            { name: "Infusion Pump C3", ip: "192.168.10.23", forceOff: false },
+            { name: "Infusion Pump D4", ip: "192.168.10.24", forceOff: false },
+            { name: "Infusion Pump E5", ip: "192.168.10.25", forceOff: false },
+            { name: "Infusion Pump F6", ip: "192.168.10.26", forceOff: false },
+            { name: "Infusion Pump G7", ip: "192.168.10.27", forceOff: false },
+            { name: "Infusion Pump H8", ip: "192.168.10.28", forceOff: false }
+        ];
+
+        function randomStatus() {
+            const r = Math.random();
+            if (r < 0.6) return { status: "Online", class: "status-green" };
+            if (r < 0.85) return { status: "Intermittent", class: "status-yellow" };
+            return { status: "Offline", class: "status-red" };
+        }
+
+        function randomTraffic() {
+            return Math.floor(Math.random() * 200 + 20) + " kb/s";
+        }
+
+        function turnOffPump(index) {
+            if (confirm("Are you sure you want to TURN OFF this pump?")) {
+                pumps[index].forceOff = true;
+                loadPumps();
+            }
+        }
+
+        function turnOnPump(index) {
+            pumps[index].forceOff = false;
+            loadPumps();
+        }
+
+        function loadPumps() {
+            const list = document.getElementById("devices-list");
+            list.innerHTML = "";
+
+            pumps.forEach((pump, index) => {
+                let st = randomStatus();
+
+                if (pump.forceOff) {
+                    st = { status: "OFF", class: "status-red" };
+                }
+
+                list.innerHTML += `
+                    <div class="device-box">
+                        <div class="device-name">${pump.name}</div>
+                        <p>IP Address: ${pump.ip}</p>
+                        <p>Status: <span class="${st.class}">${st.status}</span></p>
+                        <p>Traffic: ${pump.forceOff ? "0 kb/s" : randomTraffic()}</p>
+
+                        <button class="btn" 
+                            onclick="alert('Simulating traffic for ${pump.name}')"
+                            ${pump.forceOff ? "disabled class='btn disabled'" : ""}>
+                            Simulate Traffic
+                        </button>
+
+                        <button class="btn btn-red" onclick="turnOffPump(${index})"
+                            ${pump.forceOff ? "disabled class='btn btn-red disabled'" : ""}>
+                            Turn OFF Pump
+                        </button>
+
+                        <button class="btn btn-green" onclick="turnOnPump(${index})"
+                            ${pump.forceOff ? "" : "disabled class='btn btn-green disabled'"} >
+                            Turn ON Pump
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        loadPumps();
+        setInterval(loadPumps, 3000);
+    </script>
+
+</body>
+</html>
