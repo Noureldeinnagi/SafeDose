@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Logs – IoMT IDS</title>
+
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #0f172a;
+        color: white;
+        display: flex;
+    }
+
+    /* Sidebar */
+    .sidebar {
+        width: 250px;
+        background: #1e293b;
+        height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
+        padding-top: 20px;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.4);
+    }
+
+    .sidebar h2 {
+        text-align: center;
+        margin-bottom: 30px;
+        color: #38bdf8;
+        font-size: 22px;
+    }
+
+    .sidebar a {
+        display: block;
+        padding: 15px 20px;
+        color: #cbd5e1;
+        font-size: 18px;
+        text-decoration: none;
+        margin: 5px 0;
+        transition: 0.2s ease;
+    }
+
+    .sidebar a:hover, .sidebar a.active {
+        background: #0ea5e9;
+        color: white;
+    }
+
+    /* Main content */
+    .content {
+        margin-left: 250px;
+        padding: 25px;
+        width: calc(100% - 250px);
+    }
+
+    h1 {
+        margin-bottom: 20px;
+    }
+
+    .card {
+        background: #1e293b;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.4);
+        margin-bottom: 25px;
+    }
+
+    .card h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+    }
+
+    .btn {
+        background: #38bdf8;
+        color: #0f172a;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+
+    .btn:hover {
+        background: #0ea5e9;
+    }
+
+    /* Logs Table */
+    #logs-box {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #334155;
+    }
+
+    th {
+        background-color: #1e293b;
+        color: #38bdf8;
+    }
+
+    td {
+        background-color: #0f172a;
+    }
+
+    .status-green { color: #4ade80; font-weight: bold; }
+    .status-yellow { color: #facc15; font-weight: bold; }
+    .status-red { color: #f87171; font-weight: bold; }
+
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+    <h2>IoMT IDS</h2>
+    <a href="dashboard.html">📊 Dashboard</a>
+    <a href="alerts.html">🚨 Alerts & Incidents</a>
+    <a href="devices.html">🩺 Device Management</a>
+    <a href="logs.html" class="active">📜 System Logs</a>
+    <a href="logout.html">🔒 Logout</a>
+</div>
+
+<!-- Main content -->
+<div class="content">
+    <h1>System Logs</h1>
+
+    <div class="card">
+        <h3>Device Activity Logs</h3>
+        <button class="btn" onclick="clearLogs()">Clear Logs</button>
+
+        <div id="logs-box">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Device</th>
+                        <th>Status</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody id="logs-table"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const devices = ["Infusion Pump A1", "Infusion Pump B2", "Infusion Pump C3", "Infusion Pump D4", "Infusion Pump E5"];
+    const logs = [];
+
+    function getRandomStatus() {
+        const r = Math.random();
+        if (r < 0.6) return { text: "Online", class: "status-green" };
+        if (r < 0.85) return { text: "Intermittent", class: "status-yellow" };
+        return { text: "Offline", class: "status-red" };
+    }
+
+    function addLog() {
+        const device = devices[Math.floor(Math.random() * devices.length)];
+        const status = getRandomStatus();
+        const messages = ["Normal operation", "Suspicious traffic detected", "Connection lost temporarily", "Device restarted", "Traffic spike detected"];
+        const message = messages[Math.floor(Math.random() * messages.length)];
+        const time = new Date().toLocaleTimeString();
+
+        logs.push({ time, device, status, message });
+        if (logs.length > 50) logs.shift(); // keep last 50 logs
+        renderLogs();
+    }
+
+    function renderLogs() {
+        const table = document.getElementById("logs-table");
+        table.innerHTML = "";
+        logs.slice().reverse().forEach(log => {
+            table.innerHTML += `
+                <tr>
+                    <td>${log.time}</td>
+                    <td>${log.device}</td>
+                    <td><span class="${log.status.class}">${log.status.text}</span></td>
+                    <td>${log.message}</td>
+                </tr>
+            `;
+        });
+    }
+
+    function clearLogs() {
+        logs.length = 0;
+        renderLogs();
+    }
+
+    setInterval(addLog, 3000); // add new log every 3s
+</script>
+
+</body>
+</html>

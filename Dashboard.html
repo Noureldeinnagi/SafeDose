@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IoMT IDS – Monitoring Dashboard</title>
+
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #0f172a; color: white; display: flex; }
+
+    .sidebar {
+      width: 250px; background: #1e293b; height: 100vh; position: fixed;
+      top: 0; left: 0; padding-top: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.4);
+    }
+    .sidebar h2 { text-align: center; margin-bottom: 30px; color: #38bdf8; font-size: 22px; }
+    .sidebar a {
+      display: block; padding: 15px 20px; color: #cbd5e1; font-size: 18px;
+      text-decoration: none; margin: 5px 0; transition: 0.2s ease;
+    }
+    .sidebar a:hover, .sidebar a.active { background: #0ea5e9; color: white; }
+
+    .content { margin-left: 250px; padding: 25px; width: calc(100% - 250px); }
+
+    .container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; }
+    .card {
+      background: #1e293b; padding: 25px; border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4); transition: 0.3s;
+    }
+    .card:hover { transform: translateY(-5px); }
+    .card h3 { margin-top: 0; margin-bottom: 10px; }
+
+    .stats-number { font-size: 32px; font-weight: bold; margin: 10px 0; color: #38bdf8; }
+
+    .alert { background: #f87171; padding: 8px; border-radius: 6px; margin-top: 8px; font-size: 14px; }
+    .green { background: #4ade80; padding: 4px 6px; border-radius: 4px; }
+    .yellow { background: #facc15; padding: 4px 6px; border-radius: 4px; }
+
+    .full-width { grid-column: span 3; }
+  </style>
+</head>
+
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>SafeDose</h2>
+    <!-- ✅ must be /app/... because main.py mounts UI under /app -->
+    <a href="/app/Dashboard.html" class="active">📊 Dashboard</a>
+    <a href="/app/alerts.html">🚨 Alerts & Incidents</a>
+    <a href="/app/devices.html">🩺 Device Management</a>
+    <a href="/app/logs.html">📜 System Logs</a>
+    <a href="/app/logout.html">🔒 Logout</a>
+  </div>
+
+  <div class="content">
+    <h1>Monitoring Dashboard</h1>
+<div id="latency" style="margin:10px 0; color:#38bdf8;">
+  Latency: --
+</div>
+
+    <div class="container">
+      <div class="card">
+        <h3>Total Packets</h3>
+        <div id="packets" class="stats-number">0</div>
+      </div>
+
+      <div class="card">
+        <h3>Detected Attacks</h3>
+        <div id="attacks" class="stats-number">0</div>
+      </div>
+
+      <div class="card">
+        <h3>Fog Node Status</h3>
+        <p>CPU Usage: <span id="cpu">0%</span></p>
+        <p>RAM Usage: <span id="ram">0%</span></p>
+        <p>Status: <span class="green">Online</span></p>
+      </div>
+
+      <div class="card full-width">
+        <h3>Active Alerts</h3>
+        <div id="alerts-box">
+          <p>No active alerts</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Connected Devices</h3>
+        <p>Infusion Pump: <span class="green">Online</span></p>
+        <p>Smartwatch: <span class="green">Online</span></p>
+        <p>ECG Sensor: <span class="yellow">Intermittent</span></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const packetsEl = document.getElementById("packets");
+  const attacksEl = document.getElementById("attacks");
+  const alertsBox = document.getElementById("alerts-box");
+const latencyEl = document.getElementById("latency");
+  let totalPackets = 0;
+  let totalAttacks = 0;
+function consume(e) {
+  if (!e) return;
+
+  // only count real detection events
+  if (e.type !== "event") return;
+
+  totalPackets++;
+
+  // ✅ End-to-end latency = now (browser) - detect_ts_ms (IDS decision time)
+  if (e.detect_ts_ms) {
+    const e2e = Date.now() - Number(e.detect_ts_ms);
+    const infer = (e.infer_ms !== undefined) ? Number(e.infer_ms) : null;
+
+    latencyEl.textContent =
+      infer !== null
+        ? `Latency (E2E): ${e2e} ms | Inference: ${infer.toFixed(2)} ms`
+        : `Latency (E2E): ${e2e} ms`;
+  }
+
+  if (e.is_alert) {
+    totalAttacks++;
+    alertsBox.innerHTML =
+      `<div class="alert">⚠ flow=${e.flow} | ${e.pred_label} | conf=${Number(e.confidence).toFixed(3)}</div>` +
+      alertsBox.innerHTML;
+  }
+
+  render();
+}
+
+
+
+  function render() {
+    packetsEl.textContent = totalPackets;
+    attacksEl.textContent = totalAttacks;
+  }
+
+  function consume(e) {
+    if (!e) return;
+
+    // ignore status messages completely
+    if (e.type === "event") {
+      totalPackets++;
+
+      if (e.is_alert) {
+        totalAttacks++;
+        alertsBox.innerHTML =
+          `<div class="alert">⚠ flow=${e.flow} | ${e.pred_label} | conf=${Number(e.confidence).toFixed(3)}</div>` +
+          alertsBox.innerHTML;
+      }
+
+      render();
+    }
+  }
+
+  // Load old events (in-memory)
+  fetch("/api/events")
+    .then(r => r.json())
+    .then(list => {
+      list.forEach(consume);
+      render();
+    })
+    .catch(err => console.log(err));
+
+  // Live WebSocket stream
+  const wsProto = (location.protocol === "https:") ? "wss://" : "ws://";
+  const ws = new WebSocket(`${wsProto}${location.host}/ws/alerts`);
+
+  ws.onmessage = (msg) => {
+    try {
+      const e = JSON.parse(msg.data);
+      consume(e);
+    } catch (err) {
+      console.log("WS parse error:", err);
+    }
+  };
+
+  // fake CPU/RAM just for UI
+  setInterval(() => {
+    document.getElementById("cpu").textContent = Math.floor(Math.random() * 70 + 20) + "%";
+    document.getElementById("ram").textContent = Math.floor(Math.random() * 60 + 20) + "%";
+  }, 2000);
+</script>
+
+</body>
+</html>
